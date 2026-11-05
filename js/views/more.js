@@ -1,7 +1,7 @@
 // views/more.js: inbox, end-of-day report, calendar export, backup/restore,
 // settings and day history.
 
-import { App, act, beep, checkbox, closeSheet, copyText, esc, icon, onInput, openSheet, sheetHead, toast } from '../ui.js';
+import { App, act, beep, closeSheet, copyText, esc, icon, onInput, openSheet, sheetHead, toast } from '../ui.js';
 import * as store from '../storage.js';
 import { buildDayReport } from '../report.js';
 import { buildICS } from '../planner.js';
@@ -9,7 +9,7 @@ import { prettyDate, relDay, todayKey } from '../util.js';
 import { addInbox } from './common.js';
 import { setViewDate } from './today.js';
 
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 
 let showReport = false;
 let restoreOpen = false;
@@ -266,7 +266,10 @@ function settingsCard() {
   const s = store.getSettings();
   return `<section class="card">
     <h3 class="sec-title flush">Settings</h3>
-    ${checkbox(s.sound, '<b>Sound</b> <span class="muted small">beeps for rest, holds and heads-up (vibrates where supported)</span>', 'more.sound')}
+    <button class="switch-row" data-act="more.sound" role="switch" aria-checked="${s.sound}">
+      <span class="grow"><b>Sound</b><span class="muted small">Beeps for rest, holds and heads-up (vibrates where supported)</span></span>
+      <span class="switch ${s.sound ? 'on' : ''}"><i></i></span>
+    </button>
     <div class="lbl">Heads-up before the next block</div>
     <div class="seg small">${[0, 2, 5, 10, 15].map((m) => `<button class="seg-btn ${s.headsUpMin === m ? 'on' : ''}" data-act="more.headsUp" data-m="${m}">${m ? m + ' min' : 'Off'}</button>`).join('')}</div>
     <button class="btn block ghost" data-act="more.testSound">${icon('bell')}<span>Test sound</span></button>
@@ -329,6 +332,6 @@ act('more.viewDay', (el) => {
 
 export function render() {
   const date = todayKey();
-  return `${reportCard(date)}${inboxCard()}${calendarCard(date)}${backupCard()}${settingsCard()}${historyCard()}
-    <p class="muted small center pad">Day OS ${APP_VERSION} · works offline · data stays on this phone</p>`;
+  return `<div class="more-grid">${reportCard(date)}${inboxCard()}${calendarCard(date)}${backupCard()}${settingsCard()}${historyCard()}</div>
+    <p class="muted small center pad">Day OS ${APP_VERSION} · works offline · your data stays on this device</p>`;
 }

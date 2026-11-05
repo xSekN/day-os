@@ -67,11 +67,11 @@ export function render() {
       ${items.length ? '' : '<button class="btn block ghost" data-act="paste.example" data-kind="tracker">Load example tracker</button>'}</section>`;
     return html;
   }
-  html += open.map((it) => card(it, today)).join('');
+  html += `<div class="trk-grid">${open.map((it) => card(it, today)).join('')}</div>`;
   if (!open.length) html += '<p class="muted center pad">Everything here is done.</p>';
   if (closed.length) {
     const ui = store.getUi();
-    html += `<details class="completed" ${ui.trkCompletedOpen ? 'open' : ''} data-input="trk.completedToggle"><summary>Completed <span class="muted">(${closed.length})</span>${icon('down')}</summary>${closed.map((it) => card(it, today)).join('')}</details>`;
+    html += `<details class="completed" ${ui.trkCompletedOpen ? 'open' : ''} data-input="trk.completedToggle"><summary>Completed <span class="muted">(${closed.length})</span>${icon('down')}</summary><div class="trk-grid">${closed.map((it) => card(it, today)).join('')}</div></details>`;
   }
   return html;
 }

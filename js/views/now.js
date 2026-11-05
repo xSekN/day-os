@@ -72,7 +72,7 @@ function heroCurrent(day, b) {
   const now = Date.now();
   const pct = Math.min(100, Math.max(0, ((now - startTs) / (endTs - startTs)) * 100));
   return `<section class="card hero" style="--k:var(--k-${b.kind})">
-    <div class="row between">${kindChip(b.kind)}<span class="muted">${b.start}–${b.end}</span></div>
+    <div class="row between"><span class="row gap">${kindChip(b.kind)}<span class="live"><i></i>Live</span></span><span class="muted tnum">${b.start}–${b.end}</span></div>
     <h2 class="hero-title">${esc(b.title)}</h2>
     <div class="hero-time"><span class="big-num" data-cd="down" data-to="${endTs}">${fmtClock(endTs - now)}</span><span class="muted">left</span></div>
     <div class="bar"><i data-cd="bar" data-from="${startTs}" data-to="${endTs}" style="width:${pct}%"></i></div>
@@ -126,24 +126,65 @@ function emptyState(today) {
   </section>`;
 }
 
+// Desktop side column: how the day is going.
+function dayStats(day, ctx) {
+  const total = ctx.sorted.length;
+  const done = ctx.sorted.filter((b) => b._state === 'done').length;
+  const left = ctx.sorted.filter((b) => !b._state).length;
+  const t3 = (day.plan.top3 || []).length;
+  const t3done = (day.plan.top3 || []).filter((_, i) => day.top3[i]).length;
+  const R = 34;
+  const C = 2 * Math.PI * R;
+  const frac = total ? done / total : 0;
+  return `<section class="card day-stats desk-only">
+    <svg class="mini-ring" viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="${R}" class="ring-bg"/><circle cx="42" cy="42" r="${R}" class="ring-fg acc" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - frac)}"/></svg>
+    <div class="ds-nums">
+      <div><b>${done}</b><span>/${total} blocks done</span></div>
+      ${t3 ? `<div><b>${t3done}</b><span>/${t3} top 3</span></div>` : ''}
+      <div><b>${left}</b><span> still to go</span></div>
+    </div>
+  </section>`;
+}
+
+// Desktop side column: the rest of today at a glance.
+function agenda(day, ctx, nm) {
+  const rest = ctx.sorted.filter((b) => span(b).e > nm).slice(0, 10);
+  if (!rest.length) return '';
+  return `<section class="card agenda desk-only"><div class="row between"><h3 class="sec-title flush">Rest of today</h3><button class="btn ghost sm" data-act="app.go" data-tab="today">Timeline${icon('right')}</button></div>
+    ${rest
+      .map((b) => {
+        const cur = ctx.current === b;
+        return `<button class="ag-row ${cur ? 'cur' : ''} ${b._state ? 'st-' + b._state : ''}" style="--k:var(--k-${b.kind})" data-act="blk.open" data-date="${day.date}" data-id="${esc(b.id)}">
+          <span class="ag-time tnum">${b.start}</span><span class="ag-dot"></span><span class="ag-title">${esc(b.title)}</span>${cur ? '<span class="badge now">Now</span>' : b._state ? `<span class="badge mute">${esc(b._state === 'moved' ? 'tomorrow' : b._state)}</span>` : ''}
+        </button>`;
+      })
+      .join('')}
+  </section>`;
+}
+
 export function render() {
   const today = todayKey();
   const day = store.getDay(today);
   const nm = nowMinutes();
   let html = '';
   if (nm >= WIND_DOWN) html += windDown(day);
-  if (!day || !day.plan) return html + emptyState(today) + deadlineStrip(null, today);
-  const ctx = nowContext(day, nm);
-  if (day.plan.note) html += `<div class="day-note">${icon('note')}<span>${esc(day.plan.note)}</span></div>`;
-  html += ctx.current ? heroCurrent(day, ctx.current) : heroIdle(day, ctx);
-  if (ctx.current && ctx.next) html += upNext(day, ctx.next);
-  else if (!ctx.current && ctx.after) html += upNext(day, ctx.after, 'After that');
-  html += top3Card(day);
-  html += deadlineStrip(day.plan, today);
-  if (ctx.unmarkedPast.length) {
-    html += `<button class="hint" data-act="app.go" data-tab="today">${icon('today')}<span>${ctx.unmarkedPast.length} earlier block${ctx.unmarkedPast.length > 1 ? 's' : ''} not marked</span>${icon('right')}</button>`;
+  if (!day || !day.plan) {
+    return html + `<div class="now-grid"><div class="now-main">${emptyState(today)}</div><div class="now-side">${deadlineStrip(null, today)}</div></div>`;
   }
-  return html;
+  const ctx = nowContext(day, nm);
+  let main = '';
+  if (day.plan.note) main += `<div class="day-note">${icon('note')}<span>${esc(day.plan.note)}</span></div>`;
+  main += ctx.current ? heroCurrent(day, ctx.current) : heroIdle(day, ctx);
+  if (ctx.current && ctx.next) main += upNext(day, ctx.next);
+  else if (!ctx.current && ctx.after) main += upNext(day, ctx.after, 'After that');
+  let side = dayStats(day, ctx);
+  side += top3Card(day);
+  side += deadlineStrip(day.plan, today);
+  if (ctx.unmarkedPast.length) {
+    side += `<button class="hint" data-act="app.go" data-tab="today">${icon('today')}<span>${ctx.unmarkedPast.length} earlier block${ctx.unmarkedPast.length > 1 ? 's' : ''} not marked</span>${icon('right')}</button>`;
+  }
+  side += agenda(day, ctx, nm);
+  return `${html}<div class="now-grid"><div class="now-main">${main}</div><div class="now-side">${side}</div></div>`;
 }
 
 // Used by the tick loop to know when to re-render.

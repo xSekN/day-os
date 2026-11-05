@@ -27,6 +27,14 @@ page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 
 let step = 0;
 const results = [];
+const report = () => {
+  for (const r of results) console.log(r[0], r[1], r[2] ? '\n    ' + r[2].replace(/\n/g, '\n    ') : '');
+};
+process.on('uncaughtException', (e) => {
+  report();
+  console.error('\nStopped early:', e.message.split('\n')[0]);
+  process.exit(1);
+});
 async function shot(name, opts = {}) {
   step++;
   const file = path.join(SHOTS, `${String(step).padStart(2, '0')}-${name}.png`);
@@ -617,6 +625,97 @@ await check('no horizontal overflow on a 320px-wide phone (iPhone SE 1st gen)', 
   await p2.screenshot({ path: path.join(SHOTS, `${String(step).padStart(2, '0')}-se-workout-rest.png`) });
 });
 
+// ---------- desktop ----------
+const desk = await browser.newContext({ viewport: { width: 1440, height: 900 }, timezoneId: 'America/New_York', permissions: ['clipboard-read', 'clipboard-write'] });
+const p3 = await desk.newPage();
+p3.on('pageerror', (e) => errors.push('desktop: ' + e.message));
+p3.on('console', (m) => m.type() === 'error' && errors.push('desktop: ' + m.text()));
+await p3.clock.install({ time: T('18:00') });
+await p3.goto(BASE);
+await p3.evaluate(async (data) => {
+  for (const [k, v] of Object.entries(data)) localStorage.setItem(k, v);
+  localStorage.removeItem('dayos.workout.active');
+  localStorage.setItem('dayos.ui', '{"tab":"now"}');
+}, await page.evaluate(() => Object.fromEntries(Object.keys(localStorage).map((k) => [k, localStorage.getItem(k)]))));
+await p3.reload();
+await p3.waitForSelector('.tabbar .tab');
+const deskShot = async (name) => {
+  step++;
+  await p3.waitForTimeout(350);
+  await p3.screenshot({ path: path.join(SHOTS, `${String(step).padStart(2, '0')}-desk-${name}.png`) });
+};
+await check('desktop: sidebar nav, number keys switch tabs, nothing overflows', async () => {
+  assert.equal(await p3.locator('.nav-brand').isVisible(), true);
+  const nav = await p3.locator('.tabbar').boundingBox();
+  assert.ok(nav.height > 600 && nav.width < 300, JSON.stringify(nav));
+  assert.equal(await p3.locator('.day-stats').isVisible(), true);
+  assert.equal(await p3.locator('.agenda').isVisible(), true);
+  for (const [key, tab] of [['1', 'now'], ['2', 'today'], ['3', 'tracker'], ['4', 'workout'], ['5', 'more']]) {
+    await p3.keyboard.press(key);
+    await p3.waitForTimeout(150);
+    assert.equal(await p3.getAttribute('.tab.on', 'data-tab'), tab);
+    const [w, vw] = await p3.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+    assert.ok(w <= vw, `${tab} scrollWidth ${w} > ${vw}`);
+    await deskShot(tab);
+  }
+  await p3.keyboard.press('1');
+});
+await check('desktop: P opens Paste code, Esc closes, Ctrl+V anywhere checks a code', async () => {
+  await p3.keyboard.press('p');
+  assert.equal(await p3.locator('.sheet').isVisible(), true);
+  await p3.keyboard.press('Escape');
+  assert.equal(await p3.locator('.sheet').count(), 0);
+  const code = JSON.stringify({ v: 1, type: 'patch', date: '2026-11-05', ops: [{ op: 'update', id: 'b9', set: { title: 'Dinner with family' } }] });
+  await p3.evaluate((text) => {
+    const dt = new DataTransfer();
+    dt.setData('text/plain', text);
+    document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  }, code);
+  await p3.waitForSelector('.sheet');
+  assert.match(await p3.textContent('.sheet'), /Check before applying/);
+  assert.match(await p3.textContent('.sheet'), /updated b9 \(title\)/);
+  await deskShot('paste-preview');
+  await p3.click('[data-act="paste.apply"]');
+  const d = await p3.evaluate(() => JSON.parse(localStorage.getItem('dayos.day.2026-11-05')));
+  assert.equal(d.plan.blocks.find((b) => b.id === 'b9').title, 'Dinner with family');
+});
+await check('desktop: N jots to the inbox with Enter', async () => {
+  await p3.keyboard.press('n');
+  await p3.keyboard.type('email counselor');
+  await p3.keyboard.press('Enter');
+  const inbox = await p3.evaluate(() => JSON.parse(localStorage.getItem('dayos.inbox')));
+  assert.ok(inbox.some((i) => i.text === 'email counselor'));
+});
+await check('desktop: superset side by side, Enter logs a set', async () => {
+  await p3.keyboard.press('4');
+  await p3.click('[data-act="wo.example"]');
+  await p3.click('[data-act="wo.start"]');
+  await p3.locator('[data-act="wo.wuDone"]').first().click();
+  const a1 = await p3.locator('#ex-0-0').boundingBox();
+  const a2 = await p3.locator('#ex-0-1').boundingBox();
+  assert.ok(Math.abs(a1.y - a2.y) < 5 && a2.x > a1.x + 100, 'A1 and A2 side by side');
+  await p3.focus('.set[data-b="0"][data-e="0"][data-r="0"] input[data-f="r"]');
+  await p3.keyboard.press('Enter');
+  await p3.waitForTimeout(200);
+  const s = await p3.evaluate(() => JSON.parse(localStorage.getItem('dayos.workout.active')));
+  assert.equal(s.ex[0][0].sets[0].done, true);
+  assert.deepEqual(s.cur, { b: 0, e: 1, r: 0 });
+  await p3.focus('.set[data-b="0"][data-e="1"][data-r="0"] input[data-f="r"]');
+  await p3.keyboard.press('Enter');
+  await p3.waitForTimeout(400);
+  assert.equal(await p3.locator('.timer-panel.rest').isVisible(), true);
+  await p3.evaluate(() => window.scrollTo(0, 0));
+  await deskShot('workout-rest');
+});
+await check('desktop: dialogs are centred', async () => {
+  await p3.keyboard.press('3');
+  await p3.locator('.card.trk').first().click();
+  const box = await p3.locator('.sheet').boundingBox();
+  assert.ok(box.y > 20 && box.y + box.height < 880, JSON.stringify(box));
+  await deskShot('tracker-dialog');
+  await p3.keyboard.press('Escape');
+});
+
 await check('no page errors', async () => {
   assert.deepEqual(errors, []);
 });
@@ -624,7 +723,7 @@ await check('no page errors', async () => {
 await browser.close();
 server.close();
 
-for (const r of results) console.log(r[0], r[1], r[2] ? '\n    ' + r[2].replace(/\n/g, '\n    ') : '');
+report();
 const failed = results.filter((r) => r[0] === 'FAIL').length;
 console.log(`\n${results.length - failed}/${results.length} passed. Screenshots: ${SHOTS}`);
 process.exit(failed ? 1 : 0);

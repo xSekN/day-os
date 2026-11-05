@@ -1,6 +1,6 @@
 // Service worker: precaches the whole app so it works fully offline.
 // BUMP CACHE_VERSION ON EVERY CHANGE so the new files reach the phone.
-const CACHE_VERSION = 'dayos-v1';
+const CACHE_VERSION = 'dayos-v2';
 
 const ASSETS = [
   './',

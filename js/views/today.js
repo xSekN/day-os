@@ -73,7 +73,10 @@ function timeline(day, isToday) {
 export function render() {
   const date = getViewDate();
   const today = todayKey();
-  const isToday = date === today;
+  return `<div class="today-wrap">${body(date, today, date === today)}</div>`;
+}
+
+function body(date, today, isToday) {
   const day = store.getDay(date);
   const rel = relDay(date, today);
   let html = `<div class="date-nav">
