@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0A0C0F">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Day OS">
+  <meta name="application-name" content="Day OS">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="description" content="Daily planner with a built-in workout tracker.">
+  <title>Day OS</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/icon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./css/app.css">
+</head>
+<body>
+  <header class="hdr" id="hdr">
+    <div class="hdr-l">
+      <h1 id="hdr-title">Day OS</h1>
+      <div class="hdr-sub" id="hdr-sub"></div>
+    </div>
+    <button class="paste-btn" data-act="paste.open" aria-label="Paste code">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4V3h6v1M9 4h6v2.5H9z"/><path d="M9 12h6M9 16h4"/></svg>
+      <span>Paste code</span>
+    </button>
+  </header>
+  <div id="banners" class="banners"></div>
+  <main id="main" class="main">
+    <noscript><section class="card">Day OS needs JavaScript turned on.</section></noscript>
+  </main>
+  <button id="fab" class="fab" data-act="jot.open" aria-label="Jot something down" hidden>
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
+  <div id="wobar" class="wobar"></div>
+  <nav id="tabbar" class="tabbar" aria-label="Tabs"></nav>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="sheet-root"></div>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
