@@ -1,0 +1,11 @@
+{
+  "name": "day-os",
+  "private": true,
+  "type": "module",
+  "description": "Day OS: daily planner + workout tracker PWA. No build step; this file only exists to run the tests.",
+  "scripts": {
+    "test": "node --test tests/unit.test.mjs",
+    "e2e": "node tests/e2e.mjs",
+    "icons": "python3 tools/make_icons.py"
+  }
+}
