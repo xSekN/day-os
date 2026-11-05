@@ -38,6 +38,25 @@ At night, **More > End-of-day report > Copy report** produces `DAY OS REPORT v1`
 
 Open the URL in **Safari** > Share button > **Add to Home Screen**. Launch it from the home screen icon. After the first launch it works offline.
 
+## On a computer
+
+Open the same URL in Chrome, Edge or Safari. From 900px wide the tab bar becomes a sidebar and screens use the extra room: a two-column Now dashboard, a tracker card grid, supersets side by side, two-column More. In Chrome/Edge you can also install it (install icon in the address bar) so it opens in its own window.
+
+Keyboard shortcuts:
+
+| Key | Does |
+| --- | --- |
+| Ctrl/⌘ + V (outside a text box) | Paste a code: opens Paste code with it already checked |
+| P | Open the Paste code box |
+| N | Jot something down |
+| 1 to 5 | Now, Today, Tracker, Workout, More |
+| Enter (in a weight/reps box) | Log that set |
+| Esc | Close the open dialog |
+
+Data lives in each browser's own storage, so the phone and the computer don't sync. To move everything across, use **More > Backup > Copy all data** on one and **Restore from backup** on the other.
+
+## Sound
+
 Beeps use Web Audio (iPhone has no web vibration). Tap anywhere once after opening so sound is unlocked, and keep the ringer on if you want to hear rest-timer beeps.
 
 ## Updating

@@ -4,14 +4,14 @@
 import { App, actions, beep, closeSheet, esc, icon, inputs, act, setWakeLock, sheetOpen, toast, unlockAudio, beepLog } from './ui.js';
 import * as store from './storage.js';
 import { nowContext, span } from './planner.js';
-import { fmtClock, fmtMins, nowMinutes, todayKey, tsAt } from './util.js';
+import { fmtClock, fmtMins, hhmm, nowMinutes, prettyDate, todayKey, tsAt } from './util.js';
 import * as now from './views/now.js';
 import * as today from './views/today.js';
 import * as trackerView from './views/tracker-view.js';
 import * as workoutView from './views/workout-view.js';
 import * as more from './views/more.js';
-import { anyFocusRunning, checkFocusTimers } from './views/common.js';
-import './views/paste.js';
+import { anyFocusRunning, checkFocusTimers, openJot } from './views/common.js';
+import { openPaste } from './views/paste.js';
 import * as W from './workout.js';
 
 const VIEWS = { now, today, tracker: trackerView, workout: workoutView, more };
@@ -31,10 +31,23 @@ let headsUp = null; // { key, title, startTs }
 
 // ---------- rendering ----------
 
+// One nav element: a floating tab bar on phones, a sidebar on desktop (CSS).
 function renderShell() {
-  $('tabbar').innerHTML = TABS.map(
-    ([id, label, ic]) => `<button class="tab" data-act="app.go" data-tab="${id}" aria-label="${label}">${icon(ic)}<span>${label}</span></button>`,
-  ).join('');
+  $('tabbar').innerHTML = `
+    <div class="nav-brand desk-only"><img src="./icons/icon-192.png" alt="" width="40" height="40"><div><b>Day OS</b><span>plan · train · report</span></div></div>
+    ${TABS.map(
+      ([id, label, ic], i) => `<button class="tab" data-act="app.go" data-tab="${id}" aria-label="${label}">${icon(ic)}<span>${label}</span><kbd class="desk-only">${i + 1}</kbd></button>`,
+    ).join('')}
+    <div class="nav-foot desk-only">
+      <div class="nav-clock tnum" data-clock>--:--</div>
+      <div class="nav-date" data-today-label></div>
+      <div class="nav-keys">
+        <span><kbd>Ctrl/⌘ V</kbd> paste a code</span>
+        <span><kbd>P</kbd> paste box · <kbd>N</kbd> jot</span>
+        <span><kbd>1</kbd>–<kbd>5</kbd> tabs · <kbd>Esc</kbd> close</span>
+        <span><kbd>Enter</kbd> log a set</span>
+      </div>
+    </div>`;
 }
 
 function renderHeader() {
@@ -86,6 +99,11 @@ function render(opts = {}) {
   }
   main.innerHTML = html;
   main.dataset.tab = App.tab;
+  if (opts.enter) {
+    main.classList.remove('enter');
+    void main.offsetWidth; // restart the animation
+    main.classList.add('enter');
+  }
   renderHeader();
   renderBanners();
   renderWorkoutBar();
@@ -110,7 +128,7 @@ function go(tab, opts = {}) {
   App.tab = tab;
   store.setUi({ tab });
   if (tab === 'workout' && !same) workoutView.showSession();
-  render({ scrollTop: opts.scrollTop || same });
+  render({ scrollTop: opts.scrollTop || same, enter: !same });
   if (!opts.scrollTop && !same && scrollMem[tab]) window.scrollTo(0, scrollMem[tab]);
 }
 
@@ -125,6 +143,10 @@ function signature() {
 
 function updateCountdowns() {
   const t = Date.now();
+  const clock = hhmm(t);
+  document.querySelectorAll('[data-clock]').forEach((el) => el.textContent !== clock && (el.textContent = clock));
+  const date = prettyDate(todayKey());
+  document.querySelectorAll('[data-today-label]').forEach((el) => el.textContent !== date && (el.textContent = date));
   document.querySelectorAll('[data-cd]').forEach((el) => {
     const kind = el.dataset.cd;
     const to = +el.dataset.to;
@@ -236,6 +258,42 @@ function onField(ev) {
   }
 }
 
+// ---------- keyboard + clipboard (desktop) ----------
+
+function onKey(ev) {
+  if (ev.key === 'Escape') {
+    if (sheetOpen()) {
+      ev.preventDefault();
+      closeSheet();
+    }
+    return;
+  }
+  if (ev.metaKey || ev.ctrlKey || ev.altKey || ev.isComposing) return;
+  if (inputFocused() || sheetOpen()) return;
+  const n = '12345'.indexOf(ev.key);
+  if (n >= 0 && ev.key.length === 1) {
+    ev.preventDefault();
+    go(TABS[n][0]);
+  } else if (ev.key === 'p' || ev.key === 'P') {
+    ev.preventDefault();
+    openPaste();
+  } else if (ev.key === 'n' || ev.key === 'N') {
+    ev.preventDefault();
+    openJot();
+  }
+}
+
+// Pasting a code anywhere (Ctrl/Cmd+V outside a text field) opens the
+// Paste code sheet with it already checked.
+function onPaste(ev) {
+  const t = ev.target;
+  if (t && t.closest && t.closest('input, textarea, [contenteditable="true"]')) return;
+  const text = ev.clipboardData ? ev.clipboardData.getData('text') : '';
+  if (!text || !text.includes('{')) return;
+  ev.preventDefault();
+  openPaste(text);
+}
+
 act('app.go', (el) => {
   if (sheetOpen()) closeSheet(true);
   go(el.dataset.tab);
@@ -292,6 +350,8 @@ function boot() {
   document.addEventListener('change', onField);
   document.addEventListener('keydown', onField);
   document.addEventListener('toggle', onField, true);
+  document.addEventListener('keydown', onKey);
+  document.addEventListener('paste', onPaste);
   // iOS only plays audio that starts in a user gesture: unlock on first tap.
   const unlock = () => {
     unlockAudio();

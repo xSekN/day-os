@@ -99,12 +99,14 @@ function homeScreen() {
       <span class="grow"><span class="muted small">${tb.start}–${tb.end}${tb._state ? ' · ' + tb._state : ''}</span><b>Start today's workout: ${esc(tb.workout.session || tb.title)}</b></span>${icon('right')}
     </button>`;
   }
+  html += `<div class="wo-home"><div class="wo-home-l">`;
   html += `<section class="card">
     <h3 class="sec-title flush">Paste a workout code</h3>
     <textarea class="code-area" rows="4" placeholder='{"v":1,"type":"workout",...}' data-input="wo.pasteText" spellcheck="false" autocapitalize="off" autocorrect="off">${esc(pasteText)}</textarea>
     ${pasteErrors.length ? `<div class="err">${pasteErrors.map((e) => `<div>${esc(e)}</div>`).join('')}</div>` : ''}
     <div class="grid2"><button class="btn primary" data-act="wo.load">Load workout</button><button class="btn" data-act="wo.example">Load example</button></div>
   </section>`;
+  html += `</div><div class="wo-home-r">`;
   const hist = store.getWorkoutHistory();
   html += `<h3 class="sec-title pad-x">History</h3>`;
   if (!hist.length) html += '<p class="muted pad-x">Finished workouts show up here.</p>';
@@ -116,6 +118,7 @@ function homeScreen() {
         <span class="grow"><b>${esc(h.session)}</b><span class="muted small">${prettyDate(h.date)} · ${h.durationMin} min · ${h.done}/${h.total} sets${h.feel ? ` · feel ${h.feel}/5` : ''}</span></span>${icon('right')}</button>`,
       )
       .join('')}</div>`;
+  html += `</div></div>`;
   return html;
 }
 
@@ -297,7 +300,7 @@ function activeScreen(s) {
   return `${topBar(s)}<div id="wo-timer" class="wo-timer">${renderTimer(s)}</div>${chips}
     <section class="card wo-block">
       <div class="row between"><h3 class="flush">${esc(blk.label)} · ${blk.exercises.length > 1 ? (blk.exercises.length === 2 ? 'Superset' : 'Circuit') : 'Straight sets'}</h3><span class="muted small">rest ${blk.restSec}s</span></div>
-      ${blk.exercises.map((_, e) => exSection(s, b, e)).join('')}
+      <div class="ex-list n${blk.exercises.length}">${blk.exercises.map((_, e) => exSection(s, b, e)).join('')}</div>
     </section>
     ${nav}
     ${s.code.notes ? `<div class="wo-notes pad-x">${esc(s.code.notes)}</div>` : ''}`;
@@ -452,13 +455,23 @@ act('wo.block', (el) => {
   scrollToCur();
 });
 
-onInput('wo.val', (el) => {
+onInput('wo.val', (el, ev) => {
   const s = getS();
   if (!s) return;
   const { b, e, r } = nums(el);
   W.setValue(s, b, e, r, el.dataset.f, el.value);
-  el.closest('.set') && el.closest('.set').classList.remove('need');
+  const row = el.closest('.set');
+  if (row) row.classList.remove('need');
   save(s);
+  // Enter logs the set (keyboard on desktop, "Go" on some phone keyboards).
+  if (ev.type === 'keydown' && ev.key === 'Enter') {
+    ev.preventDefault();
+    const btn = row && row.querySelector('[data-act="wo.check"]');
+    if (btn && !btn.classList.contains('on')) {
+      el.blur();
+      btn.click();
+    }
+  }
 });
 
 act('wo.check', (el) => {
